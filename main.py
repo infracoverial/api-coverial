@@ -4,6 +4,12 @@ from pydantic import BaseModel
 
 app = FastAPI()
 
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
+app = FastAPI()
+
 # ✅ Configuration CORS pour autoriser Framer
 app.add_middleware(
     CORSMiddleware,
@@ -11,6 +17,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],  # Autoriser les requêtes GET, POST et OPTIONS
     allow_headers=["Content-Type", "Authorization"],  # Autoriser les en-têtes nécessaires
+    expose_headers=["Content-Type", "Authorization"],  # Permettre à Framer de lire la réponse
 )
 
 # ✅ Modèle des données envoyées par le client
