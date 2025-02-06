@@ -4,16 +4,16 @@ from pydantic import BaseModel
 
 app = FastAPI()
 
-# ✅ Ajout de la gestion des CORS pour autoriser Framer
+# ✅ Configuration CORS pour autoriser Framer
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://framer.com", "https://*.framer.app"],  # Autoriser uniquement les requêtes de Framer
+    allow_origins=["https://framer.com", "https://*.framer.app"],  # Autoriser uniquement Framer
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],  # Autoriser les requêtes GET, POST et OPTIONS
     allow_headers=["Content-Type", "Authorization"],  # Autoriser les en-têtes nécessaires
 )
 
-# Modèle des données envoyées par le client
+# ✅ Modèle des données envoyées par le client
 class VehicleInfo(BaseModel):
     kilometrage: int
     age: int
@@ -23,7 +23,7 @@ class VehicleInfo(BaseModel):
     etat: str
     marque: str
 
-# Coefficients multiplicateurs
+# ✅ Coefficients multiplicateurs
 coefficients = {
     "kilometrage": {50000: 1.0, 100000: 1.1, 150000: 1.2, 200000: 1.4, 999999: 1.6},
     "age": {3: 1.0, 5: 1.1, 8: 1.2, 12: 1.4, 999: 1.6},
@@ -34,7 +34,7 @@ coefficients = {
     "marque": {"Renault": 1.0, "Volkswagen": 1.1, "Audi": 1.2, "Mercedes": 1.2, "BMW": 1.2}
 }
 
-# Fonction pour appliquer les coefficients
+# ✅ Fonction pour appliquer les coefficients
 def calculer_prix(vehicule: VehicleInfo):
     prix_base = 120
     prix_final = prix_base
@@ -54,16 +54,14 @@ def calculer_prix(vehicule: VehicleInfo):
 
     return round(prix_final, 2)
 
-# ✅ Ajout d'un log pour voir les données reçues dans Render Logs
-@app.post("/calcul_prix/")
-async def get_price(vehicule: VehicleInfo):
-    prix = calculer_prix(vehicule)
-    print("🔍 Données reçues :", vehicule.dict())  # Ajoute un print pour voir les requêtes dans Tender
-    return {"prix_garantie": prix}
-
+# ✅ Route API pour calculer le prix de la garantie avec logs
 @app.post("/calcul_prix/")
 async def get_price(vehicule: VehicleInfo):
     prix = calculer_prix(vehicule)
     response = {"prix_garantie": prix}
-    print("🔍 Réponse envoyée :", response)  # Vérifier ce que l'API renvoie
+
+    print("🔍 Données reçues :", vehicule.dict())  # Voir les données reçues
+    print("🔍 Prix calculé :", prix)  # Vérifier le calcul
+    print("🔍 Réponse envoyée :", response)  # Vérifier la réponse envoyée
+
     return response
