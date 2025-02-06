@@ -1,7 +1,17 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 app = FastAPI()
+
+# ✅ Ajout de la gestion des CORS pour autoriser Framer
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://framer.com", "https://*.framer.app"],  # Autoriser uniquement les requêtes de Framer
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],  # Autoriser les requêtes GET, POST et OPTIONS
+    allow_headers=["Content-Type", "Authorization"],  # Autoriser les en-têtes nécessaires
+)
 
 # Modèle des données envoyées par le client
 class VehicleInfo(BaseModel):
@@ -44,8 +54,9 @@ def calculer_prix(vehicule: VehicleInfo):
 
     return round(prix_final, 2)
 
-# Route API pour calculer le prix de la garantie
+# ✅ Ajout d'un log pour voir les données reçues dans Render Logs
 @app.post("/calcul_prix/")
-def get_price(vehicule: VehicleInfo):
+async def get_price(vehicule: VehicleInfo):
     prix = calculer_prix(vehicule)
+    print("🔍 Données reçues :", vehicule.dict())  # Ajoute un print pour voir les requêtes dans Render
     return {"prix_garantie": prix}
