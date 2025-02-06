@@ -58,5 +58,12 @@ def calculer_prix(vehicule: VehicleInfo):
 @app.post("/calcul_prix/")
 async def get_price(vehicule: VehicleInfo):
     prix = calculer_prix(vehicule)
-    print("🔍 Données reçues :", vehicule.dict())  # Ajoute un print pour voir les requêtes dans Render
+    print("🔍 Données reçues :", vehicule.dict())  # Ajoute un print pour voir les requêtes dans Tender
     return {"prix_garantie": prix}
+
+@app.post("/calcul_prix/")
+async def get_price(vehicule: VehicleInfo):
+    prix = calculer_prix(vehicule)
+    response = {"prix_garantie": prix}
+    print("🔍 Réponse envoyée :", response)  # Vérifier ce que l'API renvoie
+    return response
