@@ -1,40 +1,51 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, conint
 from datetime import datetime
+from typing import Optional
+import unicodedata
+import re
 
 app = FastAPI()
 
-# Autoriser toutes les requêtes CORS temporairement pour tester
+# Autoriser toutes les requêtes CORS pour le développement
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
 )
+
+# Fonction pour normaliser le texte (supprimer accents, mettre en minuscule, remplacer espaces)
+def normalize_text(text: str) -> str:
+    if not text:
+        return ""
+    text = text.lower().strip()  # Convertir en minuscule et supprimer espaces inutiles
+    text = unicodedata.normalize("NFD", text).encode("ascii", "ignore").decode("utf-8")  # Supprimer les accents
+    text = re.sub(r"\s+", "_", text)  # Remplacer les espaces par _
+    return text
 
 # Modèle des données envoyées par le client
 class VehicleInfo(BaseModel):
-    marque: str
-    modele: str
+    marque: str = Field(..., description="Marque du véhicule")
+    modele: str = Field(..., description="Modèle du véhicule")
     motorisation: str
     moteur: str
     categorie: str
-    kilometrage: int
-    annee_mise_en_circulation: int
-    proprietaires: int
+    kilometrage: conint(ge=0)  # Kilométrage ne peut pas être négatif
+    annee_mise_en_circulation: conint(ge=1900, le=datetime.now().year)  # Doit être une année valide
+    proprietaires: conint(ge=1)  # Minimum 1 propriétaire
     historique_entretien: str
     etat: str
-    puissance: int
-    boite_vitesse: str  # Manuel / Automatique / Robotisée / CVT
-    transmission: str  # Traction / Propulsion / 4x4
-    usage: str  # Personnel / Taxi / VTC
-    sinistres: str  # Aucun / Carrosserie / Mécanique + Carrosserie
+    puissance: conint(ge=0)
+    boite_vitesse: str
+    transmission: str
+    usage: str
+    sinistres: str
 
-# Coefficients par marque
-coeff_marques = {m.capitalize(): v for m, v in {
+# Normalisation des coefficients
+coeff_marques = {normalize_text(m): v for m, v in {
     "Dacia": 1.1, "Renault": 1.1, "Peugeot": 1.1, "Citroën": 1.1, "Fiat": 1.1,
     "Volkswagen": 1.1, "Opel": 1.1, "Ford": 1.1, "Seat": 1.1, "Skoda": 1.1,
     "Toyota": 1.1, "Honda": 1.1, "Nissan": 1.2, "Hyundai": 1.2, "Kia": 1.2,
@@ -45,49 +56,46 @@ coeff_marques = {m.capitalize(): v for m, v in {
     "Alpine": 1.3, "SsangYong": 1.2, "Isuzu": 1.2
 }.items()}
 
-coeff_motorisation = {"Essence": 1.0, "Diesel": 1.1, "GPL": 1.0, "Hybride": 1.2}
-
-coeff_categories = {"Citadine": 1.0, "Compacte": 1.1, "Berline": 1.2, "SUV Urbain": 1.15,
+coeff_motorisation = {normalize_text(k): v for k, v in {"Essence": 1.0, "Diesel": 1.1, "GPL": 1.0, "Hybride": 1.2}.items()}
+coeff_categories = {normalize_text(k): v for k, v in {
+    "Citadine": 1.0, "Compacte": 1.1, "Berline": 1.2, "SUV Urbain": 1.15,
     "SUV": 1.3, "SUV 7 places": 1.35, "SUV Luxe": 1.5, "Break": 1.2,
     "Monospace": 1.2, "Grand Monospace": 1.3, "Ludospace": 1.1, "Tout-terrain": 1.4,
     "Pick-up": 1.3, "Coupé Sportif": 1.6, "Berline Sportive": 1.5, "SUV Sportif": 1.7,
-    "Autre": 1.0}
+    "Autre": 1.0
+}.items()}
 
-coeff_puissance = {(0, 130): 1.0, (131, 220): 1.2, (221, 300): 1.4, (301, 9999): 1.5}
-coeff_boite_vitesse = {"Manuelle": 1.0, "Automatique": 1.2, "Robotisée": 1.3, "CVT": 1.2}
-coeff_transmission = {"Traction": 1.0, "Propulsion": 1.1, "4x4": 1.3}
-coeff_usage = {"Personnel": 1.0, "Taxi": 1.5, "VTC": 1.5}
-coeff_sinistres = {"Aucun": 1.0, "Carrosserie": 1.2, "Mécanique + Carrosserie": 1.4}
-coeff_kilometrage = {(0, 50000): 1.0, (50001, 100000): 1.1, (100001, 150000): 1.2, (150001, 999999): 1.3}
-coeff_proprietaires = {1: 1.0, 2: 1.1, 3: 1.2, 4: 1.3}
 coeff_etat = {"tres_bon": 1.0, "quelques_defauts": 1.1, "nombreux_defauts": 1.2, "problemes_mecaniques": None}
 coeff_historique_entretien = {"complet": 1.0, "partiel": 1.2, "inconnu": None}
-coeff_annee = {(0, 3): 1.0, (4, 7): 1.1, (8, 12): 1.3, (13, 999): 1.5}
 
-# Fonction principale de calcul du prix
-def calculer_prix(vehicule: VehicleInfo):
+def get_coefficient(coeff_dict, value):
+    return coeff_dict.get(value, 1.0)
+
+@app.post("/calculer_prix")
+async def calculer_prix(vehicule: VehicleInfo):
     annee_actuelle = datetime.now().year
-    
-    if vehicule.annee_mise_en_circulation > annee_actuelle:
-        return "Année de mise en circulation invalide"
-    
     age_vehicule = annee_actuelle - vehicule.annee_mise_en_circulation
+
+    # Normalisation des données d'entrée
+    vehicule.marque = normalize_text(vehicule.marque)
+    vehicule.motorisation = normalize_text(vehicule.motorisation)
+    vehicule.categorie = normalize_text(vehicule.categorie)
+    vehicule.historique_entretien = normalize_text(vehicule.historique_entretien)
+    vehicule.etat = normalize_text(vehicule.etat)
 
     coef_entretien = coeff_historique_entretien.get(vehicule.historique_entretien)
     coef_etat = coeff_etat.get(vehicule.etat)
-    coef_annee = get_coefficient(coeff_annee, age_vehicule)
-    coef_puissance = get_coefficient(coeff_puissance, vehicule.puissance)
-    
+    coef_annee = get_coefficient({(0, 3): 1.0, (4, 7): 1.1, (8, 12): 1.3, (13, 999): 1.5}, age_vehicule)
+
     if coef_entretien is None or coef_etat is None:
-        return "Véhicule non éligible à la garantie"
+        raise HTTPException(status_code=400, detail="Véhicule non éligible à la garantie")
 
     prix_base = 120
     prix_final = prix_base
-    prix_final *= coeff_marques.get(vehicule.marque.capitalize(), 1.1)
+    prix_final *= coeff_marques.get(vehicule.marque, 1.1)
     prix_final *= coeff_motorisation.get(vehicule.motorisation, 1.0)
     prix_final *= coeff_categories.get(vehicule.categorie, 1.0)
-    prix_final *= coef_puissance
     prix_final *= coef_annee
     prix_final *= coef_entretien
 
-    return round(prix_final, 2)
+    return {"prix_final": round(prix_final, 2)}
