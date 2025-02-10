@@ -1,80 +1,93 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from datetime import datetime
 
 app = FastAPI()
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-
-app = FastAPI()
-
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-
-app = FastAPI()
-
-# ✅ Autoriser toutes les requêtes CORS temporairement pour tester
+# Autoriser toutes les requêtes CORS temporairement pour tester
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # TEMPORAIRE : Autorise toutes les origines
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Autoriser toutes les méthodes (GET, POST, OPTIONS, etc.)
-    allow_headers=["*"],  # Autoriser tous les headers
-    expose_headers=["*"],  # Permettre de lire tous les headers dans la réponse
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
 )
 
-# ✅ Modèle des données envoyées par le client
+# Modèle des données envoyées par le client
 class VehicleInfo(BaseModel):
+    marque: str
+    modele: str
+    motorisation: str
+    moteur: str
+    categorie: str
     kilometrage: int
-    age: int
-    taille: str
+    annee_mise_en_circulation: int
     proprietaires: int
     historique_entretien: str
     etat: str
-    marque: str
+    puissance: int
+    boite_vitesse: str  # Manuel / Automatique / Robotisée / CVT
+    transmission: str  # Traction / Propulsion / 4x4
+    usage: str  # Personnel / Taxi / VTC
+    sinistres: str  # Aucun / Carrosserie / Mécanique + Carrosserie
 
-# ✅ Coefficients multiplicateurs
-coefficients = {
-    "kilometrage": {50000: 1.0, 100000: 1.1, 150000: 1.2, 200000: 1.4, 999999: 1.6},
-    "age": {3: 1.0, 5: 1.1, 8: 1.2, 12: 1.4, 999: 1.6},
-    "taille": {"Citadine": 0.9, "Berline": 1.0, "SUV": 1.1},
-    "proprietaires": {1: 1.0, 3: 1.1, 999: 1.3},
-    "historique_entretien": {"complet": 0.9, "partiel": 1.1, "inconnu": 1.3},
-    "etat": {"tres_bon": 0.95, "quelques_defauts": 1.0, "nombreux_defauts": 1.1, "problemes_mecaniques": 1.3},
-    "marque": {"Renault": 1.0, "Volkswagen": 1.1, "Audi": 1.2, "Mercedes": 1.2, "BMW": 1.2}
-}
+# Coefficients par marque
+coeff_marques = {m.capitalize(): v for m, v in {
+    "Dacia": 1.1, "Renault": 1.1, "Peugeot": 1.1, "Citroën": 1.1, "Fiat": 1.1,
+    "Volkswagen": 1.1, "Opel": 1.1, "Ford": 1.1, "Seat": 1.1, "Skoda": 1.1,
+    "Toyota": 1.1, "Honda": 1.1, "Nissan": 1.2, "Hyundai": 1.2, "Kia": 1.2,
+    "Mazda": 1.2, "Suzuki": 1.2, "Mini": 1.2, "Audi": 1.3, "Mercedes": 1.3,
+    "BMW": 1.3, "Alfa Romeo": 1.3, "Volvo": 1.3, "Jaguar": 1.4, "Land Rover": 1.4,
+    "Porsche": 1.5, "Maserati": 1.6, "Chevrolet": 1.1, "Chrysler": 1.2, "Dodge": 1.2,
+    "Jeep": 1.3, "Subaru": 1.2, "Mitsubishi": 1.2, "Saab": 1.3, "Lancia": 1.3,
+    "Alpine": 1.3, "SsangYong": 1.2, "Isuzu": 1.2
+}.items()}
 
-# ✅ Fonction pour appliquer les coefficients
+coeff_motorisation = {"Essence": 1.0, "Diesel": 1.1, "GPL": 1.0, "Hybride": 1.2}
+
+coeff_categories = {"Citadine": 1.0, "Compacte": 1.1, "Berline": 1.2, "SUV Urbain": 1.15,
+    "SUV": 1.3, "SUV 7 places": 1.35, "SUV Luxe": 1.5, "Break": 1.2,
+    "Monospace": 1.2, "Grand Monospace": 1.3, "Ludospace": 1.1, "Tout-terrain": 1.4,
+    "Pick-up": 1.3, "Coupé Sportif": 1.6, "Berline Sportive": 1.5, "SUV Sportif": 1.7,
+    "Autre": 1.0}
+
+coeff_puissance = {(0, 130): 1.0, (131, 220): 1.2, (221, 300): 1.4, (301, 9999): 1.5}
+coeff_boite_vitesse = {"Manuelle": 1.0, "Automatique": 1.2, "Robotisée": 1.3, "CVT": 1.2}
+coeff_transmission = {"Traction": 1.0, "Propulsion": 1.1, "4x4": 1.3}
+coeff_usage = {"Personnel": 1.0, "Taxi": 1.5, "VTC": 1.5}
+coeff_sinistres = {"Aucun": 1.0, "Carrosserie": 1.2, "Mécanique + Carrosserie": 1.4}
+coeff_kilometrage = {(0, 50000): 1.0, (50001, 100000): 1.1, (100001, 150000): 1.2, (150001, 999999): 1.3}
+coeff_proprietaires = {1: 1.0, 2: 1.1, 3: 1.2, 4: 1.3}
+coeff_etat = {"tres_bon": 1.0, "quelques_defauts": 1.1, "nombreux_defauts": 1.2, "problemes_mecaniques": None}
+coeff_historique_entretien = {"complet": 1.0, "partiel": 1.2, "inconnu": None}
+coeff_annee = {(0, 3): 1.0, (4, 7): 1.1, (8, 12): 1.3, (13, 999): 1.5}
+
+# Fonction principale de calcul du prix
 def calculer_prix(vehicule: VehicleInfo):
+    annee_actuelle = datetime.now().year
+    
+    if vehicule.annee_mise_en_circulation > annee_actuelle:
+        return "Année de mise en circulation invalide"
+    
+    age_vehicule = annee_actuelle - vehicule.annee_mise_en_circulation
+
+    coef_entretien = coeff_historique_entretien.get(vehicule.historique_entretien)
+    coef_etat = coeff_etat.get(vehicule.etat)
+    coef_annee = get_coefficient(coeff_annee, age_vehicule)
+    coef_puissance = get_coefficient(coeff_puissance, vehicule.puissance)
+    
+    if coef_entretien is None or coef_etat is None:
+        return "Véhicule non éligible à la garantie"
+
     prix_base = 120
     prix_final = prix_base
-
-    # Appliquer les coefficients
-    for critere, valeurs in coefficients.items():
-        valeur_vehicule = getattr(vehicule, critere)
-
-        if isinstance(valeurs, dict):  # Si c'est un dict (catégories fixes)
-            if isinstance(valeur_vehicule, int):  # Pour les valeurs numériques
-                for seuil, coef in sorted(valeurs.items()):
-                    if valeur_vehicule <= seuil:
-                        prix_final *= coef
-                        break
-            else:  # Pour les catégories fixes (ex: marque, taille)
-                prix_final *= valeurs.get(valeur_vehicule, 1.0)
+    prix_final *= coeff_marques.get(vehicule.marque.capitalize(), 1.1)
+    prix_final *= coeff_motorisation.get(vehicule.motorisation, 1.0)
+    prix_final *= coeff_categories.get(vehicule.categorie, 1.0)
+    prix_final *= coef_puissance
+    prix_final *= coef_annee
+    prix_final *= coef_entretien
 
     return round(prix_final, 2)
-
-# ✅ Route API pour calculer le prix de la garantie avec logs
-@app.post("/calcul_prix/")
-async def get_price(vehicule: VehicleInfo):
-    prix = calculer_prix(vehicule)
-    response = {"prix_garantie": prix}
-
-    print("🔍 Données reçues :", vehicule.dict())  # Voir les données reçues
-    print("🔍 Prix calculé :", prix)  # Vérifier le calcul
-    print("🔍 Réponse envoyée :", response)  # Vérifier la réponse envoyée
-
-    return response
