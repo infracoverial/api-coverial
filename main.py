@@ -78,14 +78,12 @@ coeff_marques = {normalize_text(m): v for m, v in {
     "Alpine": 1.3, "SsangYong": 1.2, "Isuzu": 1.2
 }.items()}
 
-coeff_motorisation = {normalize_text(k): v for k, v in {"Essence": 1.0, "Diesel": 1.1, "GPL": 1.0, "Hybride": 1.2}.items()}
-coeff_categories = {normalize_text(k): v for k, v in {
-    "Citadine": 1.0, "Compacte": 1.1, "Berline": 1.2, "SUV Urbain": 1.15,
-    "SUV": 1.3, "SUV 7 places": 1.35, "SUV Luxe": 1.5, "Break": 1.2,
-    "Monospace": 1.2, "Grand Monospace": 1.3, "Ludospace": 1.1, "Tout-terrain": 1.4,
-    "Pick-up": 1.3, "Coupé Sportif": 1.6, "Berline Sportive": 1.5, "SUV Sportif": 1.7,
-    "Autre": 1.0
-}.items()}
+coeff_motorisation = {"essence": 1.0, "diesel": 1.1, "gpl": 1.0, "hybride": 1.2}
+coeff_categories = {"citadine": 1.0, "berline": 1.2, "suv": 1.3, "sportive": 1.6}
+
+# Ajout des coefficients manquants
+coeff_historique_entretien = {"complet": 1.0, "partiel": 1.2, "inconnu": None}
+coeff_etat = {"tres_bon": 1.0, "quelques_defauts": 1.1, "nombreux_defauts": 1.2, "problemes_mecaniques": None}
 
 @app.post("/calculer_prix")
 async def calculer_prix(
@@ -105,8 +103,8 @@ async def calculer_prix(
     vehicule.historique_entretien = normalize_text(vehicule.historique_entretien)
     vehicule.etat = normalize_text(vehicule.etat)
 
-    coef_entretien = coeff_historique_entretien.get(vehicule.historique_entretien)
-    coef_etat = coeff_etat.get(vehicule.etat)
+    coef_entretien = coeff_historique_entretien.get(vehicule.historique_entretien, 1.0)
+    coef_etat = coeff_etat.get(vehicule.etat, 1.0)
     coef_annee = {0: 1.0, 4: 1.1, 8: 1.3, 13: 1.5}.get(age_vehicule, 1.5)
 
     if coef_entretien is None or coef_etat is None:
