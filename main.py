@@ -38,7 +38,6 @@ class VehicleInfo(BaseModel):
     marque: str = Field(..., description="Marque du véhicule")
     modele: str = Field(..., description="Modèle du véhicule")
     motorisation: str
-    moteur: str
     categorie: str
     kilometrage: conint(ge=0)
     annee_mise_en_circulation: conint(ge=1900, le=datetime.now().year)
