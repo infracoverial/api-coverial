@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Header
+from fastapi import FastAPI, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, conint
 from datetime import datetime
@@ -13,30 +13,37 @@ app.add_middleware(
     allow_origins=["*"],  # À restreindre en production
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"],  # Autoriser tous les headers
 )
 
 # Définir une clé API (à garder secrète et changer régulièrement)
 API_KEY = "854596653658gzeyrggyds"  # Remplace par ta clé API sécurisée
 
 # Fonction pour vérifier la clé API dans le header
-def verify_api_key(api_key: str = Header(None), authorization: str = Header(None)):
+def verify_api_key(api_key: str = Header(None), authorization: str = Header(None), request: Request = None):
     """
     Vérifie la clé API dans deux formats :
     1. Header direct: `api_key`
     2. Header avec `Authorization: Bearer`
     """
-    received_key = api_key if api_key else None
+    # Log pour voir TOUS les headers reçus (utile pour le debug)
+    print(f"📌 Tous les headers reçus: {request.headers if request else 'Headers non disponibles'}")
 
-    # Vérifie si la clé API est dans le header Authorization
+    received_key = None
+
+    # Vérifie si la clé API est passée en `api_key`
+    if api_key:
+        received_key = api_key.strip()
+
+    # Vérifie si la clé API est passée en `Authorization: Bearer`
     if authorization and authorization.startswith("Bearer "):
         received_key = authorization.split("Bearer ")[1].strip()
 
-    print(f"🔍 Clé API reçue : '{received_key}'")  # Log pour debug
+    print(f"🔍 Clé API reçue après parsing: '{received_key}'")
 
     if received_key is None:
         raise HTTPException(status_code=400, detail="Aucune clé API reçue")
-    
+
     if received_key != API_KEY:
         raise HTTPException(status_code=403, detail="Clé API invalide")
 
@@ -88,7 +95,12 @@ coeff_categories = {normalize_text(k): v for k, v in {
 }.items()}
 
 @app.post("/calculer_prix")
-async def calculer_prix(vehicule: VehicleInfo, api_key: str = Header(None), authorization: str = Header(None)):
-    verify_api_key(api_key, authorization)  # Vérifie la clé API
+async def calculer_prix(
+    vehicule: VehicleInfo, 
+    api_key: str = Header(None), 
+    authorization: str = Header(None), 
+    request: Request = None
+):
+    verify_api_key(api_key, authorization, request)  # Vérifie la clé API
 
     return {"message": "Clé API valide, requête acceptée"}
