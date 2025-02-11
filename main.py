@@ -1,8 +1,7 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, conint
 from datetime import datetime
-from typing import Optional
 import unicodedata
 import re
 
@@ -11,19 +10,27 @@ app = FastAPI()
 # Autoriser toutes les requêtes CORS pour le développement
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # À restreindre en production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Fonction pour normaliser le texte (supprimer accents, mettre en minuscule, remplacer espaces)
+# Définir une clé API (à garder secrète et changer régulièrement)
+API_KEY = "854596653658gzeyrggyds"  # Remplace par ta clé API sécurisée
+
+# Fonction pour vérifier la clé API dans le header
+def verify_api_key(api_key: str = Header(None)):
+    if api_key != API_KEY:
+        raise HTTPException(status_code=403, detail="Accès interdit : clé API invalide")
+
+# Fonction pour normaliser le texte
 def normalize_text(text: str) -> str:
     if not text:
         return ""
-    text = text.lower().strip()  # Convertir en minuscule et supprimer espaces inutiles
-    text = unicodedata.normalize("NFD", text).encode("ascii", "ignore").decode("utf-8")  # Supprimer les accents
-    text = re.sub(r"\s+", "_", text)  # Remplacer les espaces par _
+    text = text.lower().strip()
+    text = unicodedata.normalize("NFD", text).encode("ascii", "ignore").decode("utf-8")
+    text = re.sub(r"\s+", "_", text)
     return text
 
 # Modèle des données envoyées par le client
@@ -33,9 +40,9 @@ class VehicleInfo(BaseModel):
     motorisation: str
     moteur: str
     categorie: str
-    kilometrage: conint(ge=0)  # Kilométrage ne peut pas être négatif
-    annee_mise_en_circulation: conint(ge=1900, le=datetime.now().year)  # Doit être une année valide
-    proprietaires: conint(ge=1)  # Minimum 1 propriétaire
+    kilometrage: conint(ge=0)
+    annee_mise_en_circulation: conint(ge=1900, le=datetime.now().year)
+    proprietaires: conint(ge=1)
     historique_entretien: str
     etat: str
     puissance: conint(ge=0)
@@ -44,7 +51,7 @@ class VehicleInfo(BaseModel):
     usage: str
     sinistres: str
 
-# Normalisation des coefficients
+# Coefficients pour calcul du prix
 coeff_marques = {normalize_text(m): v for m, v in {
     "Dacia": 1.1, "Renault": 1.1, "Peugeot": 1.1, "Citroën": 1.1, "Fiat": 1.1,
     "Volkswagen": 1.1, "Opel": 1.1, "Ford": 1.1, "Seat": 1.1, "Skoda": 1.1,
@@ -72,7 +79,9 @@ def get_coefficient(coeff_dict, value):
     return coeff_dict.get(value, 1.0)
 
 @app.post("/calculer_prix")
-async def calculer_prix(vehicule: VehicleInfo):
+async def calculer_prix(vehicule: VehicleInfo, api_key: str = Header(None)):
+    verify_api_key(api_key)  # Vérifie la clé API
+
     annee_actuelle = datetime.now().year
     age_vehicule = annee_actuelle - vehicule.annee_mise_en_circulation
 
