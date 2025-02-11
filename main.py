@@ -20,26 +20,19 @@ app.add_middleware(
 API_KEY = "854596653658gzeyrggyds"  # Remplace par ta clé API sécurisée
 
 # Fonction pour vérifier la clé API dans le header
-def verify_api_key(api_key: str = Header(None), authorization: str = Header(None), request: Request = None):
+def verify_api_key(authorization: str = Header(None), request: Request = None):
     """
-    Vérifie la clé API dans deux formats :
-    1. Header direct: `api_key`
-    2. Header avec `Authorization: Bearer`
+    Vérifie la clé API dans le header Authorization: Bearer.
     """
-    # Log pour voir TOUS les headers reçus (utile pour le debug)
-    print(f"📌 Tous les headers reçus: {request.headers if request else 'Headers non disponibles'}")
+    print(f"📌 Tous les headers reçus: {request.headers if request else 'Headers non disponibles'}")  # Debug
 
     received_key = None
-
-    # Vérifie si la clé API est passée en `api_key`
-    if api_key:
-        received_key = api_key.strip()
 
     # Vérifie si la clé API est passée en `Authorization: Bearer`
     if authorization and authorization.startswith("Bearer "):
         received_key = authorization.split("Bearer ")[1].strip()
 
-    print(f"🔍 Clé API reçue après parsing: '{received_key}'")
+    print(f"🔍 Clé API reçue après parsing: '{received_key}'")  # Debug
 
     if received_key is None:
         raise HTTPException(status_code=400, detail="Aucune clé API reçue")
@@ -97,10 +90,34 @@ coeff_categories = {normalize_text(k): v for k, v in {
 @app.post("/calculer_prix")
 async def calculer_prix(
     vehicule: VehicleInfo, 
-    api_key: str = Header(None), 
     authorization: str = Header(None), 
     request: Request = None
 ):
-    verify_api_key(api_key, authorization, request)  # Vérifie la clé API
+    verify_api_key(authorization, request)  # Vérifie la clé API
 
-    return {"message": "Clé API valide, requête acceptée"}
+    annee_actuelle = datetime.now().year
+    age_vehicule = annee_actuelle - vehicule.annee_mise_en_circulation
+
+    # Normalisation des données d'entrée
+    vehicule.marque = normalize_text(vehicule.marque)
+    vehicule.motorisation = normalize_text(vehicule.motorisation)
+    vehicule.categorie = normalize_text(vehicule.categorie)
+    vehicule.historique_entretien = normalize_text(vehicule.historique_entretien)
+    vehicule.etat = normalize_text(vehicule.etat)
+
+    coef_entretien = coeff_historique_entretien.get(vehicule.historique_entretien)
+    coef_etat = coeff_etat.get(vehicule.etat)
+    coef_annee = {0: 1.0, 4: 1.1, 8: 1.3, 13: 1.5}.get(age_vehicule, 1.5)
+
+    if coef_entretien is None or coef_etat is None:
+        raise HTTPException(status_code=400, detail="Véhicule non éligible à la garantie")
+
+    prix_base = 120
+    prix_final = prix_base
+    prix_final *= coeff_marques.get(vehicule.marque, 1.1)
+    prix_final *= coeff_motorisation.get(vehicule.motorisation, 1.0)
+    prix_final *= coeff_categories.get(vehicule.categorie, 1.0)
+    prix_final *= coef_annee
+    prix_final *= coef_entretien
+
+    return {"prix_final": round(prix_final, 2)}
