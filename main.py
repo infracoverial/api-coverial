@@ -19,7 +19,6 @@ class VehicleInfo(BaseModel):
     marque: str
     modele: str
     motorisation: str
-    moteur: str
     categorie: str
     kilometrage: int
     annee_mise_en_circulation: int
