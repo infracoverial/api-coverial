@@ -62,6 +62,12 @@ coeff_puissance = {(0, 130): 1.0, (131, 220): 1.2, (221, 300): 1.4, (301, 9999):
 coeff_etat = {"tres_bon": 1.0, "quelques_defauts": 1.1, "nombreux_defauts": 1.2, "problemes_mecaniques": None}
 coeff_historique_entretien = {"complet": 1.0, "partiel": 1.2, "inconnu": None}
 coeff_annee = {(0, 3): 1.0, (4, 7): 1.1, (8, 12): 1.3, (13, 999): 1.5}
+coeff_kilometrage = {
+    (0, 50000): 1.0,
+    (50001, 100000): 1.1,
+    (100001, 150000): 1.3,
+    (150001, 9999999): 1.5
+}
 
 
 def get_coefficient(coeff_map, valeur):
@@ -101,6 +107,7 @@ async def calculer_prix(vehicule: VehicleInfo):
 
     coef_annee = get_coefficient(coeff_annee, age_vehicule)
     coef_puissance = get_coefficient(coeff_puissance, vehicule.puissance)
+    coef_kilometrage = get_coefficient(coeff_kilometrage, vehicule.kilometrage)
 
     prix_base = 120
     prix_final = prix_base
@@ -113,6 +120,7 @@ async def calculer_prix(vehicule: VehicleInfo):
     prix_final *= coef_annee
     prix_final *= coef_entretien
     prix_final *= coef_etat
+    prix_final *= coef_kilometrage
 
     return {
         "prix_final": round(prix_final, 2),
