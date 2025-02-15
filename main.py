@@ -58,8 +58,8 @@ coeff_categories = {
 coeff_usage = {"Personnel": 1.0, "Taxi": 1.3, "VTC": 1.6}
 coeff_sinistres = {"Aucun": 1.0, "Carrosserie": 1.2, "Carrosserie + Mécanique": 1.5}
 coeff_puissance = {(0, 130): 1.0, (131, 220): 1.2, (221, 300): 1.4, (301, 9999): 1.5}
-coeff_etat = {"tres_bon": 1.0, "quelques_defauts": 1.1, "nombreux_defauts": 1.2, "problemes_mecaniques": None}
-coeff_historique_entretien = {"complet": 1.0, "partiel": 1.2, "inconnu": None}
+coeff_etat = {"Très bon": 1.0, "Quelques defauts": 1.1, "Nombreux defauts": 1.2, "Problemes mecaniques": None}
+coeff_historique_entretien = {"Complet": 1.0, "Partiel": 1.2, "Inconnu": None}
 coeff_annee = {(0, 3): 1.0, (4, 7): 1.1, (8, 12): 1.3, (13, 999): 1.5}
 coeff_kilometrage = {
     (0, 50000): 1.0,
