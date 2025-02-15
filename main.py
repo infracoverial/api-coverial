@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 
 app = FastAPI()
@@ -14,13 +14,12 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-
 class VehicleInfo(BaseModel):
     marque: str
     modele: str
     motorisation: str
     categorie: str
-    kilometrage: int
+    kilometrage: int = Field(..., ge=0)
     annee_mise_en_circulation: int
     proprietaires: int
     historique_entretien: str
@@ -69,41 +68,35 @@ coeff_kilometrage = {
     (150001, 9999999): 1.5
 }
 
-
 def get_coefficient(coeff_map, valeur):
     for (borne_min, borne_max), coef in coeff_map.items():
         if borne_min <= valeur <= borne_max:
             return coef
     return 1.0
 
-
 @app.post("/calculer_prix")
 async def calculer_prix(vehicule: VehicleInfo):
+    print(f"🔍 Requête reçue : {vehicule.dict()}")
+
     annee_actuelle = datetime.now().year
     if vehicule.annee_mise_en_circulation > annee_actuelle:
-        return {
+        reponse = {
             "prix_final": None,
             "eligibilite": "no",
             "motif": "Année de mise en circulation invalide"
         }
+        print(f"❌ Réponse envoyée : {reponse}")
+        return reponse
 
     age_vehicule = annee_actuelle - vehicule.annee_mise_en_circulation
 
     coef_entretien = coeff_historique_entretien.get(vehicule.historique_entretien)
     if coef_entretien is None:
-        return {
-            "prix_final": None,
-            "eligibilite": "no",
-            "motif": "Véhicule non éligible : Historique d’entretien inconnu"
-        }
+        return {"prix_final": None, "eligibilite": "no", "motif": "Véhicule non éligible : Historique d’entretien inconnu"}
 
     coef_etat = coeff_etat.get(vehicule.etat)
     if coef_etat is None:
-        return {
-            "prix_final": None,
-            "eligibilite": "no",
-            "motif": "Véhicule non éligible : État avec problèmes mécaniques"
-        }
+        return {"prix_final": None, "eligibilite": "no", "motif": "Véhicule non éligible : État avec problèmes mécaniques"}
 
     coef_annee = get_coefficient(coeff_annee, age_vehicule)
     coef_puissance = get_coefficient(coeff_puissance, vehicule.puissance)
@@ -122,7 +115,6 @@ async def calculer_prix(vehicule: VehicleInfo):
     prix_final *= coef_etat
     prix_final *= coef_kilometrage
 
-    return {
-        "prix_final": round(prix_final, 2),
-        "eligibilite": "yes"
-    }
+    reponse = {"prix_final": round(prix_final, 2), "eligibilite": "yes"}
+    print(f"✅ Réponse envoyée : {reponse}")
+    return reponse
