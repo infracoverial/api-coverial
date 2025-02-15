@@ -83,7 +83,7 @@ async def calculer_prix(vehicule: VehicleInfo):
     if vehicule.annee_mise_en_circulation > annee_actuelle:
         return {
             "prix_final": None,
-            "eligibilite": False,
+            "eligibilite": "no",
             "motif": "Année de mise en circulation invalide"
         }
 
@@ -93,7 +93,7 @@ async def calculer_prix(vehicule: VehicleInfo):
     if coef_entretien is None:
         return {
             "prix_final": None,
-            "eligibilite": False,
+            "eligibilite": "no",
             "motif": "Véhicule non éligible : Historique d’entretien inconnu"
         }
 
@@ -101,7 +101,7 @@ async def calculer_prix(vehicule: VehicleInfo):
     if coef_etat is None:
         return {
             "prix_final": None,
-            "eligibilite": False,
+            "eligibilite": "no",
             "motif": "Véhicule non éligible : État avec problèmes mécaniques"
         }
 
@@ -124,5 +124,5 @@ async def calculer_prix(vehicule: VehicleInfo):
 
     return {
         "prix_final": round(prix_final, 2),
-        "eligibilite": True
+        "eligibilite": "yes"
     }
