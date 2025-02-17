@@ -3,8 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from datetime import datetime
 
-# Ton code des coefficients et de la classe VehicleInfo reste inchangé ici
-
 app = FastAPI()
 
 app.add_middleware(
@@ -15,6 +13,24 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+class VehicleInfo(BaseModel):
+    marque: str
+    modele: str
+    motorisation: str
+    categorie: str
+    kilometrage: int = Field(..., ge=0)
+    annee_mise_en_circulation: int
+    proprietaires: int
+    historique_entretien: str
+    etat: str
+    puissance: int
+    boite_vitesse: str
+    transmission: str
+    usage: str
+    sinistres: str
+
+# Les coefficients inchangés...
 
 def get_coefficient(coeff_map, valeur):
     for (borne_min, borne_max), coef in coeff_map.items():
