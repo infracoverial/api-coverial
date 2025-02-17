@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from datetime import datetime
+import traceback
 
 app = FastAPI()
 
@@ -30,7 +31,7 @@ class VehicleInfo(BaseModel):
     usage: str
     sinistres: str
 
-# Les coefficients inchangés...
+# (Tes coefficients ici...)
 
 def get_coefficient(coeff_map, valeur):
     for (borne_min, borne_max), coef in coeff_map.items():
@@ -38,72 +39,64 @@ def get_coefficient(coeff_map, valeur):
             return coef
     return 1.0
 
+
 @app.post("/calculer_prix")
 async def calculer_prix(vehicule: VehicleInfo):
-    print(f"🔍 Requête reçue : {vehicule.dict()}")
+    try:
+        annee_actuelle = datetime.now().year
+        age_vehicule = annee_actuelle - vehicule.annee_mise_en_circulation
 
-    annee_actuelle = datetime.now().year
-    if vehicule.annee_mise_en_circulation > annee_actuelle:
-        return {
-            "prix_3_mois": None,
-            "prix_6_mois": None,
-            "eligibilite": "no",
-            "motif": "Année de mise en circulation invalide"
-        }
+        coef_entretien = coeff_historique_entretien.get(vehicule.historique_entretien)
+        if coef_entretien is None:
+            return {"prix_3_mois": None, "prix_6_mois": None, "eligibilite": "no", "motif": f"Historique inconnu : {vehicule.historique_entretien}"}
 
-    age_vehicule = annee_actuelle - vehicule.annee_mise_en_circulation
+        coef_etat = coeff_etat.get(vehicule.etat)
+        if coef_etat is None:
+            return {"prix_3_mois": None, "prix_6_mois": None, "eligibilite": "no", "motif": f"État inconnu : {vehicule.etat}"}
 
-    coef_entretien = coeff_historique_entretien.get(vehicule.historique_entretien)
-    if coef_entretien is None:
-        return {"prix_3_mois": None, "prix_6_mois": None, "eligibilite": "no", "motif": "Véhicule non éligible : Historique d’entretien inconnu"}
+        coef_annee = get_coefficient(coeff_annee, age_vehicule)
+        coef_puissance = get_coefficient(coeff_puissance, vehicule.puissance)
+        coef_kilometrage = get_coefficient(coeff_kilometrage, vehicule.kilometrage)
 
-    coef_etat = coeff_etat.get(vehicule.etat)
-    if coef_etat is None:
-        return {"prix_3_mois": None, "prix_6_mois": None, "eligibilite": "no", "motif": "Véhicule non éligible : État avec problèmes mécaniques"}
+        prix_base = 120
+        prix_final_3_mois = prix_base
+        prix_final_3_mois *= coeff_marques.get(vehicule.marque.capitalize(), 1.1)
+        prix_final_3_mois *= coeff_motorisation.get(vehicule.motorisation, 1.0)
+        prix_final_3_mois *= coeff_categories.get(vehicule.categorie, 1.0)
+        prix_final_3_mois *= coeff_usage.get(vehicule.usage, 1.0)
+        prix_final_3_mois *= coeff_sinistres.get(vehicule.sinistres, 1.0)
+        prix_final_3_mois *= coef_puissance
+        prix_final_3_mois *= coef_annee
+        prix_final_3_mois *= coef_entretien
+        prix_final_3_mois *= coef_etat
+        prix_final_3_mois *= coef_kilometrage
 
-    coef_annee = get_coefficient(coeff_annee, age_vehicule)
-    coef_puissance = get_coefficient(coeff_puissance, vehicule.puissance)
-    coef_kilometrage = get_coefficient(coeff_kilometrage, vehicule.kilometrage)
+        prix_final_6_mois = prix_final_3_mois * 1.6
 
-    prix_base = 120
-    prix_final_3_mois = prix_base
-    prix_final_3_mois *= coeff_marques.get(vehicule.marque.capitalize(), 1.1)
-    prix_final_3_mois *= coeff_motorisation.get(vehicule.motorisation, 1.0)
-    prix_final_3_mois *= coeff_categories.get(vehicule.categorie, 1.0)
-    prix_final_3_mois *= coeff_usage.get(vehicule.usage, 1.0)
-    prix_final_3_mois *= coeff_sinistres.get(vehicule.sinistres, 1.0)
-    prix_final_3_mois *= coef_puissance
-    prix_final_3_mois *= coef_annee
-    prix_final_3_mois *= coef_entretien
-    prix_final_3_mois *= coef_etat
-    prix_final_3_mois *= coef_kilometrage
+        eligible_6_mois = (
+            age_vehicule <= 8 and
+            vehicule.kilometrage <= 100000 and
+            vehicule.etat in ["Très bon", "Quelques défauts"] and
+            vehicule.historique_entretien in ["Complet", "Partiel"]
+        )
 
-    # Prix 6 mois : majoration de 60% du prix 3 mois
-    prix_final_6_mois = prix_final_3_mois * 1.6
+        if prix_final_3_mois < 100:
+            return {"prix_3_mois": None, "prix_6_mois": None, "eligibilite": "no", "motif": "Prix trop bas"}
 
-    # Critères d’éligibilité pour 6 mois
-    eligible_6_mois = (
-        age_vehicule <= 8 and
-        vehicule.kilometrage <= 150000 and
-        vehicule.etat in ["Très bon", "Quelques défauts"] and
-        vehicule.historique_entretien in ["Complet", "Partiel"]
-    )
+        if eligible_6_mois:
+            return {
+                "prix_3_mois": round(prix_final_3_mois, 2),
+                "prix_6_mois": round(prix_final_6_mois, 2),
+                "eligibilite": "yes_3_6_mois"
+            }
+        else:
+            return {
+                "prix_3_mois": round(prix_final_3_mois, 2),
+                "prix_6_mois": None,
+                "eligibilite": "yes_3_mois_seulement"
+            }
 
-    if prix_final_3_mois < 100:  # Exemple de seuil de non éligibilité (optionnel)
-        return {"prix_3_mois": None, "prix_6_mois": None, "eligibilite": "no", "motif": "Prix trop bas, véhicule non assurable"}
-
-    if eligible_6_mois:
-        reponse = {
-            "prix_3_mois": round(prix_final_3_mois, 2),
-            "prix_6_mois": round(prix_final_6_mois, 2),
-            "eligibilite": "yes_3_6_mois"
-        }
-    else:
-        reponse = {
-            "prix_3_mois": round(prix_final_3_mois, 2),
-            "prix_6_mois": None,
-            "eligibilite": "yes_3_mois_seulement"
-        }
-
-    print(f"✅ Réponse envoyée : {reponse}")
-    return reponse
+    except Exception as e:
+        print("🚨 ERREUR :")
+        traceback.print_exc()
+        return {"erreur": str(e)}
