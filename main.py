@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from datetime import datetime
+from typing import Optional
 
 app = FastAPI()
 
@@ -14,7 +15,7 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-# Modèle de données avec les champs communs et spécifiques aux motos
+# Modèle de données avec les champs communs et les champs spécifiques aux motos rendus optionnels
 class VehicleInfo(BaseModel):
     type_vehicule: str  # "voiture" ou "moto"
     marque: str
@@ -32,12 +33,12 @@ class VehicleInfo(BaseModel):
     transmission: str
     usage: str               # Pour voitures (ex: "Personnel", "Taxi", "VTC")
     sinistres: str           # Pour voitures (ex: "Aucun", "Carrosserie", "Carrosserie + Mécanique")
-    # Champs spécifiques aux motos
-    cylindree: int = None
-    usage_moto: str = None           # "quotidien", "balade", "mixte" ou "circuit"
-    modification_echappement: str = None  # "Oui" ou "Non"
-    modification_equipement_securite: str = None  # "Oui" ou "Non"
-    historique_sinistres_moto: str = None  # "Chute à l'arret", "Chutes en roulant", "Accident", "Aucun"
+    # Champs spécifiques aux motos (optionnels)
+    cylindree: Optional[int] = None
+    usage_moto: Optional[str] = None           # "quotidien", "balade", "mixte" ou "circuit"
+    modification_echappement: Optional[str] = None  # "Oui" ou "Non"
+    modification_equipement_securite: Optional[str] = None  # "Oui" ou "Non"
+    historique_sinistres_moto: Optional[str] = None  # "Chute à l'arret", "Chutes en roulant", "Accident", "Aucun"
 
 # -------------------------------
 # Coefficients pour les voitures
@@ -106,7 +107,6 @@ coeff_marques_moto = {
     "Vespa": 1.2
 }
 
-# Catégories pour les motos (liste fournie)
 coeff_categories_moto = {
     "Roadster": 1.0,
     "Sportive": 1.2,
@@ -147,7 +147,6 @@ coeff_categories_moto = {
     "Scooter électrique": 1.3
 }
 
-# Coefficient de cylindrée pour les motos (en cc)
 coeff_cylindree = {
     (0, 50): 0.9,
     (51, 125): 1.0,
@@ -158,7 +157,6 @@ coeff_cylindree = {
     (1101, 2000): 1.2
 }
 
-# Type d'usage spécifique aux motos
 coeff_usage_moto = {
     "quotidien": 1.0,
     "balade": 0.95,
@@ -166,7 +164,6 @@ coeff_usage_moto = {
     "circuit": 1.3
 }
 
-# Modifications
 coeff_modif_echappement = {
     "Oui": 1.2,
     "Non": 1.0
@@ -176,7 +173,6 @@ coeff_modif_equip = {
     "Non": 1.0
 }
 
-# Historique des sinistres pour les motos
 coeff_sinistres_moto = {
     "Aucun": 1.0,
     "Chute à l'arret": 1.1,
@@ -184,14 +180,12 @@ coeff_sinistres_moto = {
     "Accident": 1.3
 }
 
-# Historique d'entretien pour les motos
 coeff_entretien_moto = {
     "complet": 1.0,
     "partiel": 1.2,
     "innexistant": 1.5
 }
 
-# Fonction utilitaire pour obtenir un coefficient selon une tranche de valeurs
 def get_coefficient(coeff_map, valeur):
     for (borne_min, borne_max), coef in coeff_map.items():
         if borne_min <= valeur <= borne_max:
@@ -208,12 +202,10 @@ def calculer_prix_voiture(vehicule: VehicleInfo):
     
     age_vehicule = annee_actuelle - vehicule.annee_mise_en_circulation
 
-    # Vérification de l'historique d'entretien
     coef_histo = coeff_historique_entretien.get(vehicule.historique_entretien)
     if coef_histo is None:
         return {"eligibilite": "no", "motif": "Véhicule non éligible : Historique d’entretien inconnu"}
     
-    # Vérification de l'état du véhicule
     coef_etat_val = coeff_etat.get(vehicule.etat)
     if coef_etat_val is None:
         return {"eligibilite": "no", "motif": "Véhicule non éligible : État avec problèmes mécaniques"}
@@ -235,7 +227,6 @@ def calculer_prix_voiture(vehicule: VehicleInfo):
     prix_final *= coef_etat_val
     prix_final *= coef_km
 
-    # Conditions pour la garantie 6 mois
     eligible_6mois = (
         age_vehicule <= 10 and
         vehicule.kilometrage <= 150000 and
@@ -244,13 +235,12 @@ def calculer_prix_voiture(vehicule: VehicleInfo):
         vehicule.etat.lower() != "nombreux défauts"
     )
 
-    # Règles limitant la garantie à 3 mois : kilométrage > 170000 ou véhicule de plus de 15 ans
     if vehicule.kilometrage > 170000 or age_vehicule > 15:
         eligible_6mois = False
 
     if eligible_6mois:
         tarif_3mois = round(prix_final, 2)
-        tarif_6mois = round(prix_final * 1.9, 2)  # Multiplicateur d'exemple pour 6 mois
+        tarif_6mois = round(prix_final * 1.9, 2)
         return {"eligibilite": "yes", "tarif_3mois": tarif_3mois, "tarif_6mois": tarif_6mois}
     else:
         tarif_3mois = round(prix_final, 2)
@@ -264,44 +254,33 @@ def calculer_prix_moto(vehicule: VehicleInfo):
     if vehicule.annee_mise_en_circulation > annee_actuelle:
         return {"eligibilite": "no", "motif": "Année de mise en circulation invalide"}
     
-    # Critère d'inéligibilité : historique d'entretien inexistant
     if vehicule.historique_entretien and vehicule.historique_entretien.lower() == "innexistant":
         return {"eligibilite": "no", "motif": "Moto non éligible : Historique d’entretien inexistant"}
     
-    # Critère d'inéligibilité : kilométrage > 150000 km sauf pour Honda et BMW
     if vehicule.kilometrage > 150000 and vehicule.marque.lower() not in ["honda", "bmw"]:
         return {"eligibilite": "no", "motif": "Moto non éligible : Kilométrage trop élevé"}
     
-    prix_base = 100  # Base spécifique pour les motos
+    prix_base = 100
     prix_final = prix_base
     
-    # Application du coefficient de la marque
     prix_final *= coeff_marques_moto.get(vehicule.marque.capitalize(), 1.1)
-    
-    # Application du coefficient de la catégorie moto
     prix_final *= coeff_categories_moto.get(vehicule.categorie, 1.0)
     
-    # Coefficient lié à la cylindrée
     if vehicule.cylindree is not None:
         prix_final *= get_coefficient(coeff_cylindree, vehicule.cylindree)
     
-    # Coefficient lié au type d'usage spécifique aux motos
     if vehicule.usage_moto:
         prix_final *= coeff_usage_moto.get(vehicule.usage_moto.lower(), 1.0)
     
-    # Modifications sur l'échappement
     if vehicule.modification_echappement:
         prix_final *= coeff_modif_echappement.get(vehicule.modification_echappement.capitalize(), 1.0)
     
-    # Modifications sur l'équipement de sécurité
     if vehicule.modification_equipement_securite:
         prix_final *= coeff_modif_equip.get(vehicule.modification_equipement_securite.capitalize(), 1.0)
     
-    # Historique des sinistres pour la moto
     if vehicule.historique_sinistres_moto:
         prix_final *= coeff_sinistres_moto.get(vehicule.historique_sinistres_moto, 1.0)
     
-    # Historique d'entretien spécifique aux motos
     if vehicule.historique_entretien:
         coef_entretien = coeff_entretien_moto.get(vehicule.historique_entretien.lower())
         if coef_entretien is None:
