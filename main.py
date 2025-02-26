@@ -264,6 +264,14 @@ def calculer_prix_moto(vehicule: VehicleInfo):
     if vehicule.annee_mise_en_circulation > annee_actuelle:
         return {"eligibilite": "no", "motif": "Année de mise en circulation invalide"}
     
+    # Critère d'inéligibilité : historique d'entretien inexistant
+    if vehicule.historique_entretien and vehicule.historique_entretien.lower() == "innexistant":
+        return {"eligibilite": "no", "motif": "Moto non éligible : Historique d’entretien inexistant"}
+    
+    # Critère d'inéligibilité : kilométrage > 150000 km sauf pour Honda et BMW
+    if vehicule.kilometrage > 150000 and vehicule.marque.lower() not in ["honda", "bmw"]:
+        return {"eligibilite": "no", "motif": "Moto non éligible : Kilométrage trop élevé"}
+    
     prix_base = 100  # Base spécifique pour les motos
     prix_final = prix_base
     
@@ -297,7 +305,7 @@ def calculer_prix_moto(vehicule: VehicleInfo):
     if vehicule.historique_entretien:
         coef_entretien = coeff_entretien_moto.get(vehicule.historique_entretien.lower())
         if coef_entretien is None:
-            return {"eligibilite": "no", "motif": "Moto non éligible : Historique d’entretien innexistant"}
+            return {"eligibilite": "no", "motif": "Moto non éligible : Historique d’entretien non reconnu"}
         prix_final *= coef_entretien
     
     return {"eligibilite": "yes", "prix_final": round(prix_final, 2)}
