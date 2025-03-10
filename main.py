@@ -91,6 +91,13 @@ coeff_kilometrage = {
     (170001, 9999999): 1.5  # Kilométrage > 170000 force la garantie à 3 mois
 }
 
+# Coefficient pour la transmission des voitures
+coeff_transmission_voiture = {
+    "Traction": 1.0,
+    "Propulsion": 1.1,
+    "Intégrale": 1.2
+}
+
 # ---------------------------------
 # Coefficients spécifiques aux motos
 # ---------------------------------
@@ -232,6 +239,9 @@ def calculer_prix_voiture(vehicule: VehicleInfo):
     prix_final *= coef_histo
     prix_final *= coef_etat_val
     prix_final *= coef_km
+
+    # Ajout du coefficient pour le type de transmission
+    prix_final *= coeff_transmission_voiture.get(vehicule.transmission.capitalize(), 1.0)
 
     tarif_3mois = round(prix_final, 2)
     return {"eligibilite": "yes", "tarif_3mois": tarif_3mois}
