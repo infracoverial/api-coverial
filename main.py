@@ -31,7 +31,7 @@ class VehicleInfo(BaseModel):
     puissance: int
     boite_vitesse: str
     transmission: str
-    usage: str               # Pour voitures (ex: "Personnel", "Taxi", "VTC")
+    usage: Optional[str] = None  # Rendre ce champ optionnel
     sinistres: str           # Pour voitures (ex: "Aucun", "Carrosserie", "Carrosserie + Mécanique")
     # Champs spécifiques aux motos (optionnels)
     cylindree: Optional[int] = None
@@ -181,9 +181,9 @@ coeff_sinistres_moto = {
 }
 
 coeff_entretien_moto = {
-    "complet": 1.0,
-    "partiel": 1.2,
-    "innexistant": 1.5
+    "Complet": 1.0,
+    "Partiel": 1.2,
+    "Inconnu": 1.5
 }
 
 def get_coefficient(coeff_map, valeur):
@@ -204,7 +204,7 @@ def calculer_prix_voiture(vehicule: VehicleInfo):
 
     coef_histo = coeff_historique_entretien.get(vehicule.historique_entretien)
     if coef_histo is None:
-        return {"eligibilite": "no", "motif": "Véhicule non éligible : Historique d’entretien inconnu"}
+        return {"eligibilite": "no", "motif": "Véhicule non éligible : Historique d’entretien Inconnu"}
     
     coef_etat_val = coeff_etat.get(vehicule.etat)
     if coef_etat_val is None:
@@ -219,7 +219,7 @@ def calculer_prix_voiture(vehicule: VehicleInfo):
     prix_final *= coeff_marques.get(vehicule.marque.capitalize(), 1.1)
     prix_final *= coeff_motorisation.get(vehicule.motorisation, 1.0)
     prix_final *= coeff_categories.get(vehicule.categorie, 1.0)
-    prix_final *= coeff_usage.get(vehicule.usage, 1.0)
+    prix_final *= coeff_usage.get(vehicule.usage, 1.0) if vehicule.usage else 1.0  # Gestion du champ optionnel
     prix_final *= coeff_sinistres.get(vehicule.sinistres, 1.0)
     prix_final *= coef_puissance_val
     prix_final *= coef_age
@@ -227,24 +227,7 @@ def calculer_prix_voiture(vehicule: VehicleInfo):
     prix_final *= coef_etat_val
     prix_final *= coef_km
 
-    eligible_6mois = (
-        age_vehicule <= 10 and
-        vehicule.kilometrage <= 150000 and
-        not (vehicule.proprietaires > 3 and vehicule.historique_entretien.lower() == "partiel") and
-        vehicule.sinistres.lower() != "carrosserie + mécanique" and
-        vehicule.etat.lower() != "nombreux défauts"
-    )
-
-    if vehicule.kilometrage > 170000 or age_vehicule > 15:
-        eligible_6mois = False
-
-    if eligible_6mois:
-        tarif_3mois = round(prix_final, 2)
-        tarif_6mois = round(prix_final * 1.9, 2)
-        return {"eligibilite": "yes", "tarif_3mois": tarif_3mois, "tarif_6mois": tarif_6mois}
-    else:
-        tarif_3mois = round(prix_final, 2)
-        return {"eligibilite": "yes", "tarif_3mois": tarif_3mois}
+    return {"eligibilite": "yes", "tarif_3mois": round(prix_final, 2)}
 
 # -------------------------------
 # Calcul du tarif pour les motos
@@ -305,4 +288,4 @@ async def calculer_prix(vehicule: VehicleInfo):
         print(f"✅ Réponse envoyée (voiture) : {reponse}")
         return reponse
     else:
-        return {"eligibilite": "no", "motif": "Type de véhicule inconnu"}
+        return {"eligibilite": "no", "motif": "Type de véhicule Inconnu"}
