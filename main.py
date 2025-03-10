@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional
+from enum import Enum
 
 app = FastAPI()
 
@@ -14,6 +15,18 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+# Enum pour la transmission des automobiles
+class TransmissionAuto(str, Enum):
+    TRACTION = "Traction"
+    PROPULSION = "Propulsion"
+    QUATRE_X_QUATRE = "4x4"
+
+# Enum pour la transmission des motos
+class TransmissionMoto(str, Enum):
+    CHAINE = "Chaine"
+    CARDAN = "Cardan"
+    COUROIE = "Couroie"
 
 # Modèle de données avec les champs communs et les champs spécifiques aux motos rendus optionnels
 class VehicleInfo(BaseModel):
@@ -30,7 +43,7 @@ class VehicleInfo(BaseModel):
     etat: str                # Pour voitures (ex: "Très bon", "Quelques défauts", etc.)
     puissance: int
     boite_vitesse: str
-    transmission: str
+    transmission: Optional[str] = None  # Transmission spécifique au type de véhicule
     usage: Optional[str] = None  # Rendre ce champ optionnel
     sinistres: str           # Pour voitures (ex: "Aucun", "Carrosserie", "Carrosserie + Mécanique")
     # Champs spécifiques aux motos (optionnels)
@@ -39,6 +52,20 @@ class VehicleInfo(BaseModel):
     modification_echappement: Optional[str] = None  # "Oui" ou "Non"
     modification_equipement_securite: Optional[str] = None  # "Oui" ou "Non"
     historique_sinistres_moto: Optional[str] = None  # "Chute à l'arret", "Chutes en roulant", "Accident", "Aucun"
+
+# Coefficients pour la transmission des automobiles
+coeff_transmission_auto = {
+    TransmissionAuto.TRACTION: 1.0,
+    TransmissionAuto.PROPULSION: 1.15,
+    TransmissionAuto.QUATRE_X_QUATRE: 1.2
+}
+
+# Coefficients pour la transmission des motos
+coeff_transmission_moto = {
+    TransmissionMoto.CHAINE: 1.12,
+    TransmissionMoto.CARDAN: 1.25,
+    TransmissionMoto.COUROIE: 1.1
+}
 
 # -------------------------------
 # Coefficients pour les voitures
@@ -181,9 +208,9 @@ coeff_sinistres_moto = {
 }
 
 coeff_entretien_moto = {
-    "Complet": 1.0,
-    "Partiel": 1.2,
-    "Inconnu": 1.5
+    "complet": 1.0,
+    "partiel": 1.2,
+    "innexistant": 1.5
 }
 
 def get_coefficient(coeff_map, valeur):
@@ -204,7 +231,7 @@ def calculer_prix_voiture(vehicule: VehicleInfo):
 
     coef_histo = coeff_historique_entretien.get(vehicule.historique_entretien)
     if coef_histo is None:
-        return {"eligibilite": "no", "motif": "Véhicule non éligible : Historique d’entretien Inconnu"}
+        return {"eligibilite": "no", "motif": "Véhicule non éligible : Historique d’entretien inconnu"}
     
     coef_etat_val = coeff_etat.get(vehicule.etat)
     if coef_etat_val is None:
@@ -226,6 +253,14 @@ def calculer_prix_voiture(vehicule: VehicleInfo):
     prix_final *= coef_histo
     prix_final *= coef_etat_val
     prix_final *= coef_km
+
+    # Appliquer le coefficient de transmission pour les automobiles
+    if vehicule.transmission:
+        try:
+            transmission_type = TransmissionAuto(vehicule.transmission)
+            prix_final *= coeff_transmission_auto.get(transmission_type, 1.0)
+        except ValueError:
+            return {"eligibilite": "no", "motif": "Type de transmission invalide pour une automobile"}
 
     return {"eligibilite": "yes", "tarif_3mois": round(prix_final, 2)}
 
@@ -266,26 +301,4 @@ def calculer_prix_moto(vehicule: VehicleInfo):
     
     if vehicule.historique_entretien:
         coef_entretien = coeff_entretien_moto.get(vehicule.historique_entretien.lower())
-        if coef_entretien is None:
-            return {"eligibilite": "no", "motif": "Moto non éligible : Historique d’entretien non reconnu"}
-        prix_final *= coef_entretien
-    
-    return {"eligibilite": "yes", "prix_final": round(prix_final, 2)}
-
-# -------------------------------
-# Endpoint de calcul du tarif
-# -------------------------------
-@app.post("/calculer_prix")
-async def calculer_prix(vehicule: VehicleInfo):
-    print(f"🔍 Requête reçue : {vehicule.dict()}")
-    
-    if vehicule.type_vehicule.lower() == "moto":
-        reponse = calculer_prix_moto(vehicule)
-        print(f"✅ Réponse envoyée (moto) : {reponse}")
-        return reponse
-    elif vehicule.type_vehicule.lower() == "voiture":
-        reponse = calculer_prix_voiture(vehicule)
-        print(f"✅ Réponse envoyée (voiture) : {reponse}")
-        return reponse
-    else:
-        return {"eligibilite": "no", "motif": "Type de véhicule Inconnu"}
+       
