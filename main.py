@@ -24,9 +24,9 @@ class TransmissionAuto(str, Enum):
 
 # Enum pour la transmission des motos
 class TransmissionMoto(str, Enum):
-    CHAINE = "Chaine"
+    CHAINE = "Cha^ne"
     CARDAN = "Cardan"
-    COUROIE = "Couroie"
+    COUROIE = "Courroie"
 
 # Modèle de données avec les champs communs et les champs spécifiques aux motos rendus optionnels
 class VehicleInfo(BaseModel):
