@@ -186,6 +186,12 @@ coeff_entretien_moto = {
     "innexistant": 1.5
 }
 
+coeff_transmission_moto = {
+    "chaîne": 1.0,
+    "cardan": 1.1,
+    "courroie": 1.2
+}
+
 def get_coefficient(coeff_map, valeur):
     for (borne_min, borne_max), coef in coeff_map.items():
         if borne_min <= valeur <= borne_max:
@@ -199,21 +205,21 @@ def calculer_prix_voiture(vehicule: VehicleInfo):
     annee_actuelle = datetime.now().year
     if vehicule.annee_mise_en_circulation > annee_actuelle:
         return {"eligibilite": "no", "motif": "Année de mise en circulation invalide"}
-    
+
     age_vehicule = annee_actuelle - vehicule.annee_mise_en_circulation
 
     coef_histo = coeff_historique_entretien.get(vehicule.historique_entretien)
     if coef_histo is None:
         return {"eligibilite": "no", "motif": "Véhicule non éligible : Historique d’entretien inconnu"}
-    
+
     coef_etat_val = coeff_etat.get(vehicule.etat)
     if coef_etat_val is None:
         return {"eligibilite": "no", "motif": "Véhicule non éligible : État avec problèmes mécaniques"}
-    
+
     coef_age = get_coefficient(coeff_annee, age_vehicule)
     coef_puissance_val = get_coefficient(coeff_puissance, vehicule.puissance)
     coef_km = get_coefficient(coeff_kilometrage, vehicule.kilometrage)
-    
+
     prix_base = 120
     prix_final = prix_base
     prix_final *= coeff_marques.get(vehicule.marque.capitalize(), 1.1)
@@ -227,24 +233,8 @@ def calculer_prix_voiture(vehicule: VehicleInfo):
     prix_final *= coef_etat_val
     prix_final *= coef_km
 
-    eligible_6mois = (
-        age_vehicule <= 10 and
-        vehicule.kilometrage <= 150000 and
-        not (vehicule.proprietaires > 3 and vehicule.historique_entretien.lower() == "partiel") and
-        vehicule.sinistres.lower() != "carrosserie + mécanique" and
-        vehicule.etat.lower() != "nombreux défauts"
-    )
-
-    if vehicule.kilometrage > 170000 or age_vehicule > 15:
-        eligible_6mois = False
-
-    if eligible_6mois:
-        tarif_3mois = round(prix_final, 2)
-        tarif_6mois = round(prix_final * 1.9, 2)
-        return {"eligibilite": "yes", "tarif_3mois": tarif_3mois, "tarif_6mois": tarif_6mois}
-    else:
-        tarif_3mois = round(prix_final, 2)
-        return {"eligibilite": "yes", "tarif_3mois": tarif_3mois}
+    tarif_3mois = round(prix_final, 2)
+    return {"eligibilite": "yes", "tarif_3mois": tarif_3mois}
 
 # -------------------------------
 # Calcul du tarif pour les motos
@@ -253,40 +243,43 @@ def calculer_prix_moto(vehicule: VehicleInfo):
     annee_actuelle = datetime.now().year
     if vehicule.annee_mise_en_circulation > annee_actuelle:
         return {"eligibilite": "no", "motif": "Année de mise en circulation invalide"}
-    
+
     if vehicule.historique_entretien and vehicule.historique_entretien.lower() == "innexistant":
         return {"eligibilite": "no", "motif": "Moto non éligible : Historique d’entretien inexistant"}
-    
+
     if vehicule.kilometrage > 150000 and vehicule.marque.lower() not in ["honda", "bmw"]:
         return {"eligibilite": "no", "motif": "Moto non éligible : Kilométrage trop élevé"}
-    
+
     prix_base = 100
     prix_final = prix_base
-    
+
     prix_final *= coeff_marques_moto.get(vehicule.marque.capitalize(), 1.1)
     prix_final *= coeff_categories_moto.get(vehicule.categorie, 1.0)
-    
+
     if vehicule.cylindree is not None:
         prix_final *= get_coefficient(coeff_cylindree, vehicule.cylindree)
-    
+
     if vehicule.usage_moto:
         prix_final *= coeff_usage_moto.get(vehicule.usage_moto.lower(), 1.0)
-    
+
     if vehicule.modification_echappement:
         prix_final *= coeff_modif_echappement.get(vehicule.modification_echappement.capitalize(), 1.0)
-    
+
     if vehicule.modification_equipement_securite:
         prix_final *= coeff_modif_equip.get(vehicule.modification_equipement_securite.capitalize(), 1.0)
-    
+
     if vehicule.historique_sinistres_moto:
         prix_final *= coeff_sinistres_moto.get(vehicule.historique_sinistres_moto, 1.0)
-    
+
     if vehicule.historique_entretien:
         coef_entretien = coeff_entretien_moto.get(vehicule.historique_entretien.lower())
         if coef_entretien is None:
             return {"eligibilite": "no", "motif": "Moto non éligible : Historique d’entretien non reconnu"}
         prix_final *= coef_entretien
-    
+
+    # Ajout du coefficient pour le type de transmission
+    prix_final *= coeff_transmission_moto.get(vehicule.transmission.lower(), 1.0)
+
     return {"eligibilite": "yes", "prix_final": round(prix_final, 2)}
 
 # -------------------------------
@@ -295,7 +288,7 @@ def calculer_prix_moto(vehicule: VehicleInfo):
 @app.post("/calculer_prix")
 async def calculer_prix(vehicule: VehicleInfo):
     print(f"🔍 Requête reçue : {vehicule.dict()}")
-    
+
     if vehicule.type_vehicule.lower() == "moto":
         reponse = calculer_prix_moto(vehicule)
         print(f"✅ Réponse envoyée (moto) : {reponse}")
