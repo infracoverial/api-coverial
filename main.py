@@ -26,12 +26,12 @@ class VehicleInfo(BaseModel):
     annee_mise_en_circulation: int
     proprietaires: int
     historique_entretien: str  # Pour voitures : "Complet", "Partiel", "Inconnu"
-                               # Pour motos : "Complet", "Partiel", "innexistant"
+                               # Pour motos : "complet", "partiel", "innexistant"
     etat: str                # Pour voitures (ex: "Très bon", "Quelques défauts", etc.)
     puissance: int
     boite_vitesse: str
     transmission: str
-    usage: str               # Pour voitures (ex: "Personnel", "Taxi", "VTC")
+    usage: Optional[str] = None  # Optionnel pour les motos
     sinistres: str           # Pour voitures (ex: "Aucun", "Carrosserie", "Carrosserie + Mécanique")
     # Champs spécifiques aux motos (optionnels)
     cylindree: Optional[int] = None
@@ -95,7 +95,7 @@ coeff_kilometrage = {
 # Coefficients spécifiques aux motos
 # ---------------------------------
 coeff_marques_moto = {
-    "Aprilia": 1.4,
+    "Aprilia": 1.3,
     "BMW": 1.5,
     "Ducati": 1.5,
     "Harley-Davidson": 1.4,
@@ -158,10 +158,10 @@ coeff_cylindree = {
 }
 
 coeff_usage_moto = {
-    "Quotidien": 1.0,
-    "Balade": 0.95,
-    "Mixte": 1.0,
-    "Circuit": 1.3
+    "quotidien": 1.0,
+    "balade": 0.95,
+    "mixte": 1.0,
+    "circuit": 1.3
 }
 
 coeff_modif_echappement = {
@@ -181,15 +181,15 @@ coeff_sinistres_moto = {
 }
 
 coeff_entretien_moto = {
-    "Complet": 1.0,
-    "Partiel": 1.2,
-    "Inconnu": 1.5
+    "complet": 1.0,
+    "partiel": 1.2,
+    "innexistant": 1.5
 }
 
 coeff_transmission_moto = {
-    "Chaîne": 1.0,
-    "Cardan": 1.1,
-    "Courroie": 1.2
+    "chaîne": 1.0,
+    "cardan": 1.1,
+    "courroie": 1.2
 }
 
 def get_coefficient(coeff_map, valeur):
@@ -210,7 +210,7 @@ def calculer_prix_voiture(vehicule: VehicleInfo):
 
     coef_histo = coeff_historique_entretien.get(vehicule.historique_entretien)
     if coef_histo is None:
-        return {"eligibilite": "no", "motif": "Véhicule non éligible : Historique d’entretien Inconnu"}
+        return {"eligibilite": "no", "motif": "Véhicule non éligible : Historique d’entretien inconnu"}
 
     coef_etat_val = coeff_etat.get(vehicule.etat)
     if coef_etat_val is None:
@@ -244,7 +244,7 @@ def calculer_prix_moto(vehicule: VehicleInfo):
     if vehicule.annee_mise_en_circulation > annee_actuelle:
         return {"eligibilite": "no", "motif": "Année de mise en circulation invalide"}
 
-    if vehicule.historique_entretien and vehicule.historique_entretien.lower() == "Inconnu":
+    if vehicule.historique_entretien and vehicule.historique_entretien.lower() == "innexistant":
         return {"eligibilite": "no", "motif": "Moto non éligible : Historique d’entretien inexistant"}
 
     if vehicule.kilometrage > 150000 and vehicule.marque.lower() not in ["honda", "bmw"]:
@@ -298,4 +298,4 @@ async def calculer_prix(vehicule: VehicleInfo):
         print(f"✅ Réponse envoyée (voiture) : {reponse}")
         return reponse
     else:
-        return {"eligibilite": "no", "motif": "Type de véhicule Inconnu"}
+        return {"eligibilite": "no", "motif": "Type de véhicule inconnu"}
