@@ -290,7 +290,7 @@ def calculer_prix_moto(vehicule: VehicleInfo):
     # Ajout du coefficient pour le type de transmission
     prix_final *= coeff_transmission_moto.get(vehicule.transmission.lower(), 1.0)
 
-    return {"eligibilite": "yes", "prix_final": round(prix_final, 2)}
+    return {"eligibilite": "yes", "tarif_3mois": round(prix_final, 2)}
 
 # -------------------------------
 # Endpoint de calcul du tarif
