@@ -205,9 +205,132 @@ def get_coefficient(coeff_map, valeur):
             return coef
     return 1.0
 
-# -------------------------------
-# Calcul du tarif pour les voitures
-# -------------------------------
+# Plafonds maximums pour les voitures
+plafonds_max_voitures = {
+    "Citadine": 1500,
+    "Berline compacte": 1500,
+    "Monospace": 1500,
+    "Berline": 1500,
+    "SUV": 2000,
+    "Utilitaire": 1500,
+    "Break": 1500,
+    "Coupé cabriolet": 1500,
+    "Coupé": 1500,
+    "Berline premium": 2200,
+    "Citadine premium": 1500,
+    "SUV premium": 2200,
+    "Break premium": 1500,
+    "Break compact": 1500,
+    "SUV compact": 1500,
+    "Berline luxe": 2200,
+    "SUV luxe": 2200,
+    "Micro-citadine": 1500
+}
+
+# Plafonds maximums pour les motos
+plafonds_max_motos = {
+    "Roadster": 1500,
+    "Sportive": 2000,
+    "Supermotard": 1500,
+    "Trail": 1800,
+    "Sport-Touring": 2000,
+    "Touring": 2000,
+    "Trail Sportif": 2000,
+    "Roadster Néorétro": 1500,
+    "Cruiser": 2000,
+    "Power Cruiser": 2000,
+    "Électrique": 2000,
+    "Custom": 2000,
+    "Scooter": 1500,
+    "Scooter/Trail": 1500,
+    "Trail Routier": 1800,
+    "Motocross": 1500,
+    "Enduro": 1500,
+    "Supermoto": 1500,
+    "Scooter urbain": 1500,
+    "Scooter à grandes roues": 1500,
+    "Scooter GT à grandes roues": 1500,
+    "Maxi-scooter": 1500,
+    "Maxi-scooter compact": 1500,
+    "Scooter à trois roues": 1500,
+    "Scooter sportif": 1500,
+    "Scooter urbain compact": 1500,
+    "Scooter léger": 1500,
+    "Scooter classique": 1500,
+    "Classique": 2000,
+    "Café Racer": 2000,
+    "Scrambler": 1800,
+    "Adventure": 1800,
+    "Adventure/Touring": 2000,
+    "Scooter GT": 1500,
+    "Scooter urbain sportif": 1500,
+    "Scooter premium": 2000,
+    "Scooter électrique": 2000
+}
+
+# Plafonds intermédiaires et conditions pour les voitures
+plafonds_intermediaires_voitures = {
+    "Citadine": {"plafond": 900, "conditions": "+120 000 km ou historique d'entretien partiel"},
+    "Berline compacte": {"plafond": 1000, "conditions": "+150 000 km ou historique d'entretien partiel"},
+    "Monospace": {"plafond": 1000, "conditions": "+150 000 km ou historique d'entretien partiel"},
+    "Berline": {"plafond": 1000, "conditions": "+150 000 km ou historique d'entretien partiel"},
+    "SUV": {"plafond": 1200, "conditions": "+150 000 km ou historique d'entretien partiel"},
+    "Utilitaire": {"plafond": 1000, "conditions": "+150 000 km ou historique d'entretien partiel"},
+    "Break": {"plafond": 1000, "conditions": "+150 000 km ou historique d'entretien partiel"},
+    "Coupé cabriolet": {"plafond": 1000, "conditions": "+150 000 km ou historique d'entretien partiel"},
+    "Coupé": {"plafond": 1000, "conditions": "+150 000 km ou historique d'entretien partiel"},
+    "Berline premium": {"plafond": 1300, "conditions": "+150 000 km ou historique d'entretien partiel"},
+    "Citadine premium": {"plafond": 900, "conditions": "+120 000 km ou historique d'entretien partiel"},
+    "SUV premium": {"plafond": 1300, "conditions": "+150 000 km ou historique d'entretien partiel"},
+    "Break premium": {"plafond": 1000, "conditions": "+150 000 km ou historique d'entretien partiel"},
+    "Break compact": {"plafond": 1000, "conditions": "+150 000 km ou historique d'entretien partiel"},
+    "SUV compact": {"plafond": 1200, "conditions": "+150 000 km ou historique d'entretien partiel"},
+    "Berline luxe": {"plafond": 1300, "conditions": "+150 000 km ou historique d'entretien partiel"},
+    "SUV luxe": {"plafond": 1300, "conditions": "+150 000 km ou historique d'entretien partiel"},
+    "Micro-citadine": {"plafond": 900, "conditions": "+120 000 km ou historique d'entretien partiel"}
+}
+
+# Plafonds intermédiaires et conditions pour les motos
+plafonds_intermediaires_motos = {
+    "Roadster": {"plafond": 900, "conditions": "+60 000 km ou historique d'entretien partiel"},
+    "Sportive": {"plafond": 1300, "conditions": "+30 000 km ou historique d'entretien partiel"},
+    "Supermotard": {"plafond": 900, "conditions": "+60 000 km ou historique d'entretien partiel"},
+    "Trail": {"plafond": 1100, "conditions": "+70 000 km ou historique d'entretien partiel"},
+    "Sport-Touring": {"plafond": 1300, "conditions": "+100 000 km ou historique d'entretien partiel"},
+    "Touring": {"plafond": 1300, "conditions": "+100 000 km ou historique d'entretien partiel"},
+    "Trail Sportif": {"plafond": 1300, "conditions": "+100 000 km ou historique d'entretien partiel"},
+    "Roadster Néorétro": {"plafond": 900, "conditions": "+60 000 km ou historique d'entretien partiel"},
+    "Cruiser": {"plafond": 1300, "conditions": "+100 000 km ou historique d'entretien partiel"},
+    "Power Cruiser": {"plafond": 1300, "conditions": "+100 000 km ou historique d'entretien partiel"},
+    "Électrique": {"plafond": 1300, "conditions": "+100 000 km ou historique d'entretien partiel"},
+    "Custom": {"plafond": 1300, "conditions": "+100 000 km ou historique d'entretien partiel"},
+    "Scooter": {"plafond": 900, "conditions": "+60 000 km ou historique d'entretien partiel"},
+    "Scooter/Trail": {"plafond": 900, "conditions": "+60 000 km ou historique d'entretien partiel"},
+    "Trail Routier": {"plafond": 1100, "conditions": "+70 000 km ou historique d'entretien partiel"},
+    "Motocross": {"plafond": 900, "conditions": "+60 000 km ou historique d'entretien partiel"},
+    "Enduro": {"plafond": 900, "conditions": "+60 000 km ou historique d'entretien partiel"},
+    "Supermoto": {"plafond": 900, "conditions": "+60 000 km ou historique d'entretien partiel"},
+    "Scooter urbain": {"plafond": 900, "conditions": "+60 000 km ou historique d'entretien partiel"},
+    "Scooter à grandes roues": {"plafond": 900, "conditions": "+60 000 km ou historique d'entretien partiel"},
+    "Scooter GT à grandes roues": {"plafond": 900, "conditions": "+60 000 km ou historique d'entretien partiel"},
+    "Maxi-scooter": {"plafond": 900, "conditions": "+60 000 km ou historique d'entretien partiel"},
+    "Maxi-scooter compact": {"plafond": 900, "conditions": "+60 000 km ou historique d'entretien partiel"},
+    "Scooter à trois roues": {"plafond": 900, "conditions": "+60 000 km ou historique d'entretien partiel"},
+    "Scooter sportif": {"plafond": 900, "conditions": "+60 000 km ou historique d'entretien partiel"},
+    "Scooter urbain compact": {"plafond": 900, "conditions": "+60 000 km ou historique d'entretien partiel"},
+    "Scooter léger": {"plafond": 900, "conditions": "+60 000 km ou historique d'entretien partiel"},
+    "Scooter classique": {"plafond": 900, "conditions": "+60 000 km ou historique d'entretien partiel"},
+    "Classique": {"plafond": 1300, "conditions": "+100 000 km ou historique d'entretien partiel"},
+    "Café Racer": {"plafond": 1300, "conditions": "+100 000 km ou historique d'entretien partiel"},
+    "Scrambler": {"plafond": 1100, "conditions": "+70 000 km ou historique d'entretien partiel"},
+    "Adventure": {"plafond": 1100, "conditions": "+70 000 km ou historique d'entretien partiel"},
+    "Adventure/Touring": {"plafond": 1300, "conditions": "+100 000 km ou historique d'entretien partiel"},
+    "Scooter GT": {"plafond": 900, "conditions": "+60 000 km ou historique d'entretien partiel"},
+    "Scooter urbain sportif": {"plafond": 900, "conditions": "+60 000 km ou historique d'entretien partiel"},
+    "Scooter premium": {"plafond": 1300, "conditions": "+100 000 km ou historique d'entretien partiel"},
+    "Scooter électrique": {"plafond": 1300, "conditions": "+100 000 km ou historique d'entretien partiel"}
+}
+
 def calculer_prix_voiture(vehicule: VehicleInfo):
     annee_actuelle = datetime.now().year
     if vehicule.annee_mise_en_circulation > annee_actuelle:
@@ -244,11 +367,20 @@ def calculer_prix_voiture(vehicule: VehicleInfo):
     prix_final *= coeff_transmission_voiture.get(vehicule.transmission.capitalize(), 1.0)
 
     tarif_3mois = round(prix_final, 2)
-    return {"eligibilite": "yes", "tarif_3mois": tarif_3mois}
 
-# -------------------------------
-# Calcul du tarif pour les motos
-# -------------------------------
+    # Ajouter les plafonds maximum et intermédiaire à la réponse
+    plafond_max = plafonds_max_voitures.get(vehicule.categorie, 0)
+    plafond_intermediaire = plafonds_intermediaires_voitures.get(vehicule.categorie, {}).get("plafond", 0)
+    conditions = plafonds_intermediaires_voitures.get(vehicule.categorie, {}).get("conditions", "")
+    reponse = {
+        "eligibilite": "yes",
+        "tarif_3mois": tarif_3mois,
+        "plafond_max": plafond_max,
+        "plafond_intermediaire": plafond_intermediaire,
+        "conditions": conditions
+    }
+    return reponse
+
 def calculer_prix_moto(vehicule: VehicleInfo):
     annee_actuelle = datetime.now().year
     if vehicule.annee_mise_en_circulation > annee_actuelle:
@@ -290,7 +422,18 @@ def calculer_prix_moto(vehicule: VehicleInfo):
     # Ajout du coefficient pour le type de transmission
     prix_final *= coeff_transmission_moto.get(vehicule.transmission.lower(), 1.0)
 
-    return {"eligibilite": "yes", "tarif_3mois": round(prix_final, 2)}
+    # Ajouter les plafonds maximum et intermédiaire à la réponse
+    plafond_max = plafonds_max_motos.get(vehicule.categorie, 0)
+    plafond_intermediaire = plafonds_intermediaires_motos.get(vehicule.categorie, {}).get("plafond", 0)
+    conditions = plafonds_intermediaires_motos.get(vehicule.categorie, {}).get("conditions", "")
+    reponse = {
+        "eligibilite": "yes",
+        "tarif_3mois": round(prix_final, 2),
+        "plafond_max": plafond_max,
+        "plafond_intermediaire": plafond_intermediaire,
+        "conditions": conditions
+    }
+    return reponse
 
 # -------------------------------
 # Endpoint de calcul du tarif
